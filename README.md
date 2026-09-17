@@ -14,3 +14,5 @@ Core principles:
 - PostgreSQL is authoritative storage; pgvector is optional until an embedding strategy is explicitly chosen.
 
 This repository is intentionally bootstrapped through pull requests and CI.
+
+The default branch contains only the minimal bootstrap required to let GitHub Actions validate feature branches; implementation work lands through pull requests.
