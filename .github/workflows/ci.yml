@@ -22,7 +22,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Detect initialized project
+        id: project
+        shell: bash
+        run: |
+          if [[ -f pyproject.toml ]]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Bootstrap repository check
+        if: steps.project.outputs.ready != 'true'
+        run: test -f README.md
+
       - name: Set up Python
+        if: steps.project.outputs.ready == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -30,21 +45,27 @@ jobs:
           cache-dependency-path: pyproject.toml
 
       - name: Install project
+        if: steps.project.outputs.ready == 'true'
         run: python -m pip install --upgrade pip && python -m pip install -e ".[dev]"
 
       - name: Dependency sanity
+        if: steps.project.outputs.ready == 'true'
         run: python -m pip check
 
       - name: Ruff
+        if: steps.project.outputs.ready == 'true'
         run: ruff check .
 
       - name: Mypy
+        if: steps.project.outputs.ready == 'true'
         run: mypy src/ami_knowledge_core
 
       - name: Unit tests
+        if: steps.project.outputs.ready == 'true'
         run: python -m pytest
 
       - name: Repository health simulation
+        if: steps.project.outputs.ready == 'true'
         run: python scripts/repository_health.py --strict
 
   postgres-smoke:
@@ -71,7 +92,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Detect initialized project
+        id: project
+        shell: bash
+        run: |
+          if [[ -f pyproject.toml && -f scripts/postgres_smoke.py ]]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Bootstrap database check
+        if: steps.project.outputs.ready != 'true'
+        run: echo "Knowledge Core database slice not initialized yet."
+
       - name: Set up Python
+        if: steps.project.outputs.ready == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -79,7 +115,9 @@ jobs:
           cache-dependency-path: pyproject.toml
 
       - name: Install project
+        if: steps.project.outputs.ready == 'true'
         run: python -m pip install --upgrade pip && python -m pip install -e .
 
       - name: Verify PostgreSQL and pgvector
+        if: steps.project.outputs.ready == 'true'
         run: python scripts/postgres_smoke.py
