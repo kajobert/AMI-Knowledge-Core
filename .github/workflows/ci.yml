@@ -1,0 +1,123 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Quality and deterministic simulation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect initialized project
+        id: project
+        shell: bash
+        run: |
+          if [[ -f pyproject.toml ]]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Bootstrap repository check
+        if: steps.project.outputs.ready != 'true'
+        run: test -f README.md
+
+      - name: Set up Python
+        if: steps.project.outputs.ready == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install project
+        if: steps.project.outputs.ready == 'true'
+        run: python -m pip install --upgrade pip && python -m pip install -e ".[dev]"
+
+      - name: Dependency sanity
+        if: steps.project.outputs.ready == 'true'
+        run: python -m pip check
+
+      - name: Ruff
+        if: steps.project.outputs.ready == 'true'
+        run: ruff check .
+
+      - name: Mypy
+        if: steps.project.outputs.ready == 'true'
+        run: mypy src/ami_knowledge_core
+
+      - name: Unit tests
+        if: steps.project.outputs.ready == 'true'
+        run: python -m pytest
+
+      - name: Repository health simulation
+        if: steps.project.outputs.ready == 'true'
+        run: python scripts/repository_health.py --strict
+
+  postgres-smoke:
+    name: PostgreSQL + pgvector smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: ami_ci
+          POSTGRES_PASSWORD: ami_ci_password
+          POSTGRES_DB: ami_knowledge_core_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ami_ci -d ami_knowledge_core_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://ami_ci:ami_ci_password@127.0.0.1:5432/ami_knowledge_core_ci
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect initialized project
+        id: project
+        shell: bash
+        run: |
+          if [[ -f pyproject.toml && -f scripts/postgres_smoke.py ]]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Bootstrap database check
+        if: steps.project.outputs.ready != 'true'
+        run: echo "Knowledge Core database slice not initialized yet."
+
+      - name: Set up Python
+        if: steps.project.outputs.ready == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install project
+        if: steps.project.outputs.ready == 'true'
+        run: python -m pip install --upgrade pip && python -m pip install -e .
+
+      - name: Verify PostgreSQL and pgvector
+        if: steps.project.outputs.ready == 'true'
+        run: python scripts/postgres_smoke.py
