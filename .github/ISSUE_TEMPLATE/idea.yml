@@ -1,0 +1,54 @@
+name: Idea / Suggestion — no code required
+description: Share an idea, use case, problem, risk, or improvement without needing to write code.
+title: "[Idea] "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for contributing to AMI. You do not need to know how to code. Plain language is welcome.
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: What are you trying to achieve?
+      description: Describe the outcome you want, in your own words.
+      placeholder: I want AMI to...
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: Why does this matter?
+      description: Who would benefit, and what problem would this solve?
+    validations:
+      required: true
+
+  - type: textarea
+    id: current
+    attributes:
+      label: What happens today?
+      description: Describe the current limitation, confusion, missing capability, or failure mode.
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: Your idea
+      description: Share any proposed behavior, workflow, sketch, analogy, reference, or example.
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence / references
+      description: Optional links, papers, screenshots, examples, prior art, or observations.
+
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Public contribution check
+      options:
+        - label: I have not included passwords, tokens, private exports, personal conversations, or other sensitive data.
+          required: true
