@@ -4,13 +4,24 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>AMI Encyclopedia</title>
-    <link rel="stylesheet" href="/static/style.css" />
+    <script>
+      (() => {
+        const path = window.location.pathname.replace(/\/+$/, "");
+        const base = path.includes("/ami-encyclopedia") ? "/ami-encyclopedia" : "";
+        window.__AMI_KC_BASE__ = base;
+
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href = base + "/static/style.css";
+        document.head.appendChild(link);
+      })();
+    </script>
   </head>
   <body>
     <header class="topbar">
       <div class="brand">
         <h1>AMI Encyclopedia</h1>
-        <p>Knowledge Core · read-first archaeology UI</p>
+        <p>Knowledge Core · read-first archaeology UI · sanitized fixture preview</p>
       </div>
       <form id="global-search" class="global-search" role="search">
         <input id="search-input" type="search" placeholder="Global search (sources, claims, concepts, evidence)…" />
@@ -26,6 +37,7 @@
         <button data-view="sources">Sources</button>
         <button data-view="claims">Claims</button>
         <button data-view="timeline">Timeline</button>
+        <button data-view="worker">Worker / Ingest</button>
       </nav>
 
       <main id="workspace" class="workspace" aria-live="polite"></main>
@@ -40,7 +52,13 @@
       </aside>
     </div>
 
-    <script type="module" src="/static/encyclopedia.js"></script>
+    <script>
+      (() => {
+        const script = document.createElement("script");
+        script.type = "module";
+        script.src = (window.__AMI_KC_BASE__ || "") + "/static/encyclopedia.js";
+        document.body.appendChild(script);
+      })();
+    </script>
   </body>
 </html>
-

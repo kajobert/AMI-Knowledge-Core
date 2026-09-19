@@ -2,6 +2,8 @@
   "manifest_version": "1",
   "batch_id": "archaeology_batch_001",
   "description": "First 8-source archaeology batch — synthetic public fixtures only (no private chat exports).",
+  "canonical_reference": "kajobert/AMI-alpha/docs/ARCHAEOLOGY_BATCH_001_SOURCE_MANIFEST.md",
+  "meta_fixture": "fixtures/archaeology_batch_001.meta.json",
   "entries": [
     {
       "slug": "sophia-consciousness-blueprint",
