@@ -3,6 +3,20 @@ const inspectorBody = document.getElementById("inspector-body");
 const inspectorChain = document.getElementById("inspector-chain");
 const inspectorSubtitle = document.getElementById("inspector-subtitle");
 const healthEl = document.getElementById("health");
+const BASE_PATH = window.__AMI_KC_BASE__ || "";
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function safeJson(value) {
+  return escapeHtml(JSON.stringify(value, null, 2));
+}
 
 const state = {
   view: "matrix",
@@ -12,7 +26,7 @@ const state = {
 };
 
 async function api(path) {
-  const response = await fetch(path);
+  const response = await fetch(`${BASE_PATH}${path}`);
   if (!response.ok) {
     throw new Error(`${path} → HTTP ${response.status}`);
   }
@@ -20,7 +34,7 @@ async function api(path) {
 }
 
 function badge(status) {
-  return `<span class="badge badge-${status}">${status}</span>`;
+  return `<span class="badge badge-${escapeHtml(status)}">${escapeHtml(status)}</span>`;
 }
 
 function renderInspectorFromInspect(payload) {
@@ -28,7 +42,7 @@ function renderInspectorFromInspect(payload) {
   inspectorChain.innerHTML = (payload.chain || [])
     .map(
       (step) =>
-        `<button type="button" data-inspect="${step.kind}:${step.id}">${step.kind}: ${step.label}</button>`
+        `<button type="button" data-inspect="${escapeHtml(step.kind)}:${escapeHtml(step.id)}">${escapeHtml(step.kind)}: ${escapeHtml(step.label)}</button>`
     )
     .join("");
   inspectorChain.querySelectorAll("[data-inspect]").forEach((button) => {
@@ -37,7 +51,7 @@ function renderInspectorFromInspect(payload) {
       openInspector(kind, id);
     });
   });
-  inspectorBody.innerHTML = `<pre>${JSON.stringify(payload.record, null, 2)}</pre>`;
+  inspectorBody.innerHTML = `<pre>${safeJson(payload.record)}</pre>`;
 }
 
 async function openInspector(kind, id) {
@@ -79,15 +93,15 @@ async function renderMatrix() {
         ${rows
           .map(
             (row) => `
-          <tr class="clickable" data-source="${row.source_id}">
-            <td><strong>${row.slug}</strong><div class="muted">${row.lifecycle_status}</div></td>
-            <td>${row.historical_design}</td>
-            <td>${row.current_implementation}</td>
+          <tr class="clickable" data-source="${escapeHtml(row.source_id)}">
+            <td><strong>${escapeHtml(row.slug)}</strong><div class="muted">${escapeHtml(row.lifecycle_status)}</div></td>
+            <td>${escapeHtml(row.historical_design)}</td>
+            <td>${escapeHtml(row.current_implementation)}</td>
             <td>${badge(row.matrix_status)}</td>
             <td class="muted">${
               (row.supporting_evidence || [])
                 .slice(0, 2)
-                .map((ev) => ev.excerpt?.slice(0, 80) || ev.chunk_id)
+                .map((ev) => escapeHtml(ev.excerpt?.slice(0, 80) || ev.chunk_id))
                 .join("<br/>") || "—"
             }</td>
           </tr>`
@@ -116,7 +130,7 @@ async function renderGraph() {
         <span class="muted">Semantic zoom</span>
         <button type="button" id="zoom-out">− Zoom out</button>
         <button type="button" id="zoom-in">+ Zoom in</button>
-        <span class="muted">root: ${graph.root} · level ${graph.zoom}</span>
+        <span class="muted">root: ${escapeHtml(graph.root)} · level ${escapeHtml(graph.zoom)}</span>
       </div>
       <div class="graph-canvas" id="graph-canvas"></div>
     </div>`;
@@ -125,7 +139,7 @@ async function renderGraph() {
   for (const node of graph.nodes) {
     const el = document.createElement("article");
     el.className = "graph-node";
-    el.innerHTML = `<div class="kind">${node.kind}</div><strong>${node.label}</strong><div class="muted">${node.title || ""}</div>`;
+    el.innerHTML = `<div class="kind">${escapeHtml(node.kind)}</div><strong>${escapeHtml(node.label)}</strong><div class="muted">${escapeHtml(node.title || "")}</div>`;
     el.addEventListener("click", async () => {
       const [kind, id] = node.id.split(":");
       await openInspector(kind, id);
@@ -160,9 +174,9 @@ async function renderSources() {
   workspace.innerHTML = `<h2>Sources</h2>${sources
     .map(
       (s) => `
-      <article class="card clickable" data-source="${s.source_id}">
-        <strong>${s.title}</strong>
-        <div class="muted">${s.slug} · ${s.lifecycle_status} · ${s.implementation_status}</div>
+      <article class="card clickable" data-source="${escapeHtml(s.source_id)}">
+        <strong>${escapeHtml(s.title)}</strong>
+        <div class="muted">${escapeHtml(s.slug)} · ${escapeHtml(s.lifecycle_status)} · ${escapeHtml(s.implementation_status)}</div>
       </article>`
     )
     .join("")}`;
@@ -180,9 +194,9 @@ async function renderClaims() {
       ? claims
           .map(
             (c) => `
-      <article class="card clickable" data-claim="${c.claim_id}">
-        <div>${c.claim_text}</div>
-        <div class="muted">${c.validation_status} · ${c.lifecycle_status}</div>
+      <article class="card clickable" data-claim="${escapeHtml(c.claim_id)}">
+        <div>${escapeHtml(c.claim_text)}</div>
+        <div class="muted">${escapeHtml(c.validation_status)} · ${escapeHtml(c.lifecycle_status)}</div>
       </article>`
           )
           .join("")
@@ -195,7 +209,7 @@ async function renderClaims() {
 
 async function renderTimeline() {
   const events = await api("/api/timeline");
-  workspace.innerHTML = `<h2>Timeline</h2><pre>${JSON.stringify(events, null, 2)}</pre>`;
+  workspace.innerHTML = `<h2>Timeline</h2><pre>${safeJson(events)}</pre>`;
 }
 
 async function renderWorkerStatus() {
@@ -208,31 +222,31 @@ async function renderWorkerStatus() {
     <h2>Continuous Archaeology Worker</h2>
     <p class="muted">Per-source checkpoints · no auto-canonical promotion</p>
     <h3>Job states</h3>
-    <pre>${JSON.stringify(status.jobs_by_state, null, 2)}</pre>
+    <pre>${safeJson(status.jobs_by_state)}</pre>
     <h3>Recent worker runs</h3>
-    <pre>${JSON.stringify(status.recent_runs, null, 2)}</pre>
+    <pre>${safeJson(status.recent_runs)}</pre>
     <h3>Recent jobs</h3>
-    <pre>${JSON.stringify(jobs, null, 2)}</pre>
+    <pre>${safeJson(jobs)}</pre>
     <h3>Ingest runs</h3>
-    <pre>${JSON.stringify(ingestRuns, null, 2)}</pre>`;
+    <pre>${safeJson(ingestRuns)}</pre>`;
 }
 
 async function renderSearchResults(query) {
   const results = await api(`/api/search?q=${encodeURIComponent(query)}`);
   workspace.innerHTML = `
     <div class="search-results">
-      <h2>Search: ${query}</h2>
+      <h2>Search: ${escapeHtml(query)}</h2>
       ${["sources", "claims", "entities", "chunks"]
         .map((section) => {
           const items = results[section] || [];
-          return `<section><h3>${section} (${items.length})</h3>${items
+          return `<section><h3>${escapeHtml(section)} (${items.length})</h3>${items
             .map((item) => {
               const kind = section.slice(0, -1);
               const id =
                 item.source_id || item.claim_id || item.entity_id || item.chunk_id;
               const label =
                 item.title || item.claim_text || item.name || item.excerpt || id;
-              return `<article class="card clickable" data-kind="${kind}" data-id="${id}">${label}</article>`;
+              return `<article class="card clickable" data-kind="${escapeHtml(kind)}" data-id="${escapeHtml(id)}">${escapeHtml(label)}</article>`;
             })
             .join("")}</section>`;
         })
