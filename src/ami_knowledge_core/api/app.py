@@ -12,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 
 from ..db import connect
 from ..migrate import apply_migrations
+from .read_models import InspectKind, global_search, inspect, lazy_graph, reality_matrix
 
 DASHBOARD_DIR = Path(__file__).resolve().parent / "static"
 
@@ -256,6 +257,35 @@ def list_conflicts() -> list[dict[str, Any]]:
                 """
         )
         return list(cursor.fetchall())
+
+
+@app.get("/api/search")
+def search_global(
+    q: str = Query(..., min_length=1),
+    limit: int = Query(15, ge=1, le=50),
+) -> dict[str, Any]:
+    return global_search(q, limit=limit)
+
+
+@app.get("/api/graph")
+def get_graph(
+    root: str = Query("batch:archaeology_batch_001"),
+    depth: int = Query(1, ge=0, le=3),
+    focus: str | None = Query(None),
+) -> dict[str, Any]:
+    return lazy_graph(root=root, depth=depth, focus=focus)
+
+
+@app.get("/api/reality-matrix")
+def get_reality_matrix(
+    batch_id: str | None = Query("archaeology_batch_001"),
+) -> list[dict[str, Any]]:
+    return reality_matrix(batch_id=batch_id)
+
+
+@app.get("/api/inspect/{kind}/{object_id}")
+def inspect_object(kind: InspectKind, object_id: str) -> dict[str, Any]:
+    return inspect(kind, object_id)
 
 
 @app.get("/api/timeline")
