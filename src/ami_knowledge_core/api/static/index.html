@@ -3,35 +3,44 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>AMI Encyclopedia v0</title>
+    <title>AMI Encyclopedia</title>
     <link rel="stylesheet" href="/static/style.css" />
   </head>
   <body>
-    <header>
-      <h1>AMI Encyclopedia</h1>
-      <p class="tagline">Read-first knowledge dashboard · Knowledge Core</p>
-      <nav id="nav">
-        <button data-view="home">Home</button>
-        <button data-view="search">Search</button>
-        <button data-view="sources">Sources</button>
-        <button data-view="entities">Concepts / Entities</button>
-        <button data-view="claims">Claims</button>
-        <button data-view="components">Components</button>
-        <button data-view="decisions">Decisions</button>
-        <button data-view="timeline">Timeline</button>
-        <button data-view="current">Current</button>
-        <button data-view="historical">Historical</button>
-        <button data-view="conflicts">Conflicts</button>
-        <button data-view="evidence">Evidence</button>
-      </nav>
+    <header class="topbar">
+      <div class="brand">
+        <h1>AMI Encyclopedia</h1>
+        <p>Knowledge Core · read-first archaeology UI</p>
+      </div>
+      <form id="global-search" class="global-search" role="search">
+        <input id="search-input" type="search" placeholder="Global search (sources, claims, concepts, evidence)…" />
+        <button type="submit">Search</button>
+      </form>
+      <div id="health" class="health">Checking…</div>
     </header>
-    <main>
-      <section id="panel"></section>
-    </main>
-    <footer>
-      <span id="health">Checking health…</span>
-    </footer>
-    <script src="/static/app.js"></script>
+
+    <div class="layout">
+      <nav class="sidebar" id="sidebar">
+        <button data-view="matrix" class="active">Evidence / Reality Matrix</button>
+        <button data-view="graph">Concept graph</button>
+        <button data-view="sources">Sources</button>
+        <button data-view="claims">Claims</button>
+        <button data-view="timeline">Timeline</button>
+      </nav>
+
+      <main id="workspace" class="workspace" aria-live="polite"></main>
+
+      <aside id="inspector" class="inspector" aria-label="Inspector">
+        <header>
+          <h2>Inspector</h2>
+          <p id="inspector-subtitle" class="muted">Select a node or search result</p>
+        </header>
+        <nav id="inspector-chain" class="chain"></nav>
+        <div id="inspector-body" class="inspector-body"></div>
+      </aside>
+    </div>
+
+    <script type="module" src="/static/encyclopedia.js"></script>
   </body>
 </html>
 
