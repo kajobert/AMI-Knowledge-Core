@@ -29,9 +29,7 @@ tailscale serve status
 
 Expected loopback: `http://127.0.0.1:8765/`
 
-Current verified tailnet route:
-
-`https://sophia-core.tail6f4ebc.ts.net:8443/ami-encyclopedia`
+Verified tailnet route exists on the project node at dedicated HTTPS port `8443` and path `/ami-encyclopedia`. The exact private tailnet hostname is intentionally not published in this public repository.
 
 ## Rollback (non-destructive)
 
