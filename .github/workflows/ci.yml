@@ -121,3 +121,11 @@ jobs:
       - name: Verify PostgreSQL and pgvector
         if: steps.project.outputs.ready == 'true'
         run: python scripts/postgres_smoke.py
+
+      - name: Apply migrations
+        if: steps.project.outputs.ready == 'true'
+        run: python scripts/run_migrate.py
+
+      - name: Integration tests (PostgreSQL)
+        if: steps.project.outputs.ready == 'true'
+        run: python -m pytest tests/test_migrations.py tests/test_ingest.py tests/test_provenance.py tests/test_api.py

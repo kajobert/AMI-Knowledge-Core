@@ -13,14 +13,17 @@ def main() -> int:
     if not database_url:
         raise RuntimeError("DATABASE_URL is required")
 
-    with psycopg.connect(database_url) as connection:
-        with connection.cursor() as cursor:
-            cursor.execute("CREATE EXTENSION IF NOT EXISTS vector")
-            cursor.execute("SELECT extversion FROM pg_extension WHERE extname = 'vector'")
-            row = cursor.fetchone()
-            if row is None:
-                raise RuntimeError("pgvector extension was not loaded")
-            print(f"pgvector={row[0]}")
+    from ami_knowledge_core.migrate import apply_migrations
+
+    with psycopg.connect(database_url) as connection, connection.cursor() as cursor:
+        cursor.execute("CREATE EXTENSION IF NOT EXISTS vector")
+        cursor.execute("SELECT extversion FROM pg_extension WHERE extname = 'vector'")
+        row = cursor.fetchone()
+        if row is None:
+            raise RuntimeError("pgvector extension was not loaded")
+        print(f"pgvector={row[0]}")
+    applied = apply_migrations()
+    print(f"migrations={applied}")
     return 0
 
 

@@ -1,0 +1,108 @@
+{
+  "manifest_version": "1",
+  "batch_id": "archaeology_batch_001",
+  "description": "First 8-source archaeology batch — synthetic public fixtures only (no private chat exports).",
+  "entries": [
+    {
+      "slug": "sophia-consciousness-blueprint",
+      "title": "Sophia consciousness blueprint (synthetic fixture)",
+      "file": "synthetic/01_sophia_consciousness_blueprint.md",
+      "parser": "markdown",
+      "media_type": "text/markdown",
+      "implementation_status": "DESIGN",
+      "lifecycle_status": "HISTORICAL",
+      "access_class": "INTERNAL",
+      "origin": "archaeology-fixture",
+      "provenance": { "batch": "archaeology_batch_001", "ordinal": 1, "note": "metadata-only placeholder" }
+    },
+    {
+      "slug": "sophia-architecture-audit",
+      "title": "Sophia current/legacy architecture audit (synthetic fixture)",
+      "file": "synthetic/02_sophia_architecture_audit.md",
+      "parser": "markdown",
+      "implementation_status": "RESEARCH",
+      "lifecycle_status": "HISTORICAL",
+      "access_class": "INTERNAL",
+      "origin": "archaeology-fixture",
+      "provenance": { "batch": "archaeology_batch_001", "ordinal": 2 }
+    },
+    {
+      "slug": "salt-primary-document",
+      "title": "SALT primary document (synthetic fixture)",
+      "file": "synthetic/03_salt_primary.md",
+      "parser": "markdown",
+      "implementation_status": "DESIGN",
+      "lifecycle_status": "CURRENT",
+      "access_class": "INTERNAL",
+      "origin": "archaeology-fixture",
+      "provenance": { "batch": "archaeology_batch_001", "ordinal": 3 }
+    },
+    {
+      "slug": "vgl-specification",
+      "title": "VGL specification (synthetic fixture)",
+      "file": "synthetic/04_vgl_specification.md",
+      "parser": "markdown",
+      "implementation_status": "DESIGN",
+      "lifecycle_status": "UNRESOLVED",
+      "access_class": "INTERNAL",
+      "origin": "archaeology-fixture",
+      "provenance": { "batch": "archaeology_batch_001", "ordinal": 4 }
+    },
+    {
+      "slug": "routing-design",
+      "title": "Routing design (synthetic fixture)",
+      "file": "synthetic/05_routing_design.md",
+      "parser": "markdown",
+      "implementation_status": "EXPERIMENT",
+      "lifecycle_status": "HISTORICAL",
+      "access_class": "INTERNAL",
+      "origin": "archaeology-fixture",
+      "provenance": { "batch": "archaeology_batch_001", "ordinal": 5 }
+    },
+    {
+      "slug": "dreaming-memory-design",
+      "title": "Dreaming / memory design (synthetic fixture)",
+      "file": "synthetic/06_dreaming_memory_design.md",
+      "parser": "markdown",
+      "implementation_status": "RESEARCH",
+      "lifecycle_status": "HISTORICAL",
+      "access_class": "INTERNAL",
+      "origin": "archaeology-fixture",
+      "provenance": { "batch": "archaeology_batch_001", "ordinal": 6 }
+    },
+    {
+      "slug": "gemini-conversation-artifact",
+      "title": "Gemini conversation artifact (synthetic metadata fixture)",
+      "file": "synthetic/07_gemini_conversation.txt",
+      "parser": "plain_text",
+      "media_type": "text/plain",
+      "implementation_status": "PoC",
+      "lifecycle_status": "HISTORICAL",
+      "access_class": "SENSITIVE",
+      "origin": "archaeology-fixture",
+      "provenance": {
+        "batch": "archaeology_batch_001",
+        "ordinal": 7,
+        "conversation_id": "synthetic-gemini-thread-001",
+        "note": "real exports remain outside git"
+      }
+    },
+    {
+      "slug": "perplexity-research-artifact",
+      "title": "Perplexity research artifact (synthetic metadata fixture)",
+      "file": "synthetic/08_perplexity_research.txt",
+      "parser": "plain_text",
+      "media_type": "text/plain",
+      "implementation_status": "RESEARCH",
+      "lifecycle_status": "HISTORICAL",
+      "access_class": "SENSITIVE",
+      "origin": "archaeology-fixture",
+      "provenance": {
+        "batch": "archaeology_batch_001",
+        "ordinal": 8,
+        "thread_id": "synthetic-perplexity-001"
+      }
+    }
+  ]
+}
+
