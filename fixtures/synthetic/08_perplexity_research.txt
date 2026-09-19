@@ -1,0 +1,4 @@
+SYNTHETIC PERPLEXITY RESEARCH FIXTURE
+thread_id=synthetic-perplexity-001
+summary=Research notes placeholder for Perplexity artifact metadata tests.
+

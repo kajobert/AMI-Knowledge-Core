@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="cs">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AMI Encyclopedia v0</title>
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>AMI Encyclopedia</h1>
+      <p class="tagline">Read-first knowledge dashboard · Knowledge Core</p>
+      <nav id="nav">
+        <button data-view="home">Home</button>
+        <button data-view="search">Search</button>
+        <button data-view="sources">Sources</button>
+        <button data-view="entities">Concepts / Entities</button>
+        <button data-view="claims">Claims</button>
+        <button data-view="components">Components</button>
+        <button data-view="decisions">Decisions</button>
+        <button data-view="timeline">Timeline</button>
+        <button data-view="current">Current</button>
+        <button data-view="historical">Historical</button>
+        <button data-view="conflicts">Conflicts</button>
+        <button data-view="evidence">Evidence</button>
+      </nav>
+    </header>
+    <main>
+      <section id="panel"></section>
+    </main>
+    <footer>
+      <span id="health">Checking health…</span>
+    </footer>
+    <script src="/static/app.js"></script>
+  </body>
+</html>
+

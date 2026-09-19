@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: ami_kc
+      POSTGRES_PASSWORD: ami_kc_dev_password
+      POSTGRES_DB: ami_knowledge_core
+    ports:
+      - "54329:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ami_kc -d ami_knowledge_core"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - ami_kc_pgdata:/var/lib/postgresql/data
+
+volumes:
+  ami_kc_pgdata:
+

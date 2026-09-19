@@ -1,0 +1,8 @@
+SYNTHETIC GEMINI EXPORT METADATA FIXTURE
+conversation_id=synthetic-gemini-thread-001
+message_id=msg-001 role=user timestamp=2025-01-01T00:00:00Z
+Discuss AMI Knowledge Core archaeology ingest boundaries.
+
+message_id=msg-002 role=model timestamp=2025-01-01T00:01:00Z
+Raw exports must never be committed; host assigns SHA-256 and provenance IDs.
+

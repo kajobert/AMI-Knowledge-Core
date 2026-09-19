@@ -1,4 +1,4 @@
-"""Deterministic Markdown chunking with provenance anchors."""
+"""Deterministic, versioned chunking with provenance anchors."""
 
 from __future__ import annotations
 
@@ -6,16 +6,25 @@ from dataclasses import dataclass
 
 from .identity import sha256_text, stable_id
 
+MARKDOWN_CHUNKER_VERSION = "markdown-v1"
+PLAIN_TEXT_CHUNKER_VERSION = "plain_text-v1"
+
 
 @dataclass(frozen=True, slots=True)
-class MarkdownChunk:
+class TextChunk:
     chunk_id: str
     ordinal: int
-    heading_path: tuple[str, ...]
     start_line: int
     end_line: int
     text: str
     content_sha256: str
+    chunker_version: str
+    heading_path: tuple[str, ...] = ()
+
+
+MarkdownChunk = TextChunk
+
+PLAIN_TEXT_MAX_LINES = 80
 
 
 def chunk_markdown(revision_id: str, artifact_id: str, text: str) -> list[MarkdownChunk]:
@@ -57,6 +66,7 @@ def chunk_markdown(revision_id: str, artifact_id: str, text: str) -> list[Markdo
                 end_line=end_line,
                 text=body,
                 content_sha256=content_hash,
+                chunker_version=MARKDOWN_CHUNKER_VERSION,
             )
         )
         buffer = []
@@ -81,4 +91,45 @@ def chunk_markdown(revision_id: str, artifact_id: str, text: str) -> list[Markdo
         buffer.append(line)
 
     flush(len(lines))
+    return chunks
+
+
+def chunk_plain_text(revision_id: str, artifact_id: str, text: str) -> list[TextChunk]:
+    """Split plain text into fixed-size line windows (deterministic)."""
+
+    if not revision_id.strip() or not artifact_id.strip():
+        raise ValueError("revision_id and artifact_id must not be empty")
+
+    lines = text.splitlines()
+    if not lines:
+        return []
+
+    chunks: list[TextChunk] = []
+    start = 0
+    while start < len(lines):
+        end = min(start + PLAIN_TEXT_MAX_LINES, len(lines))
+        body = "\n".join(lines[start:end]).strip()
+        if body:
+            ordinal = len(chunks)
+            content_hash = sha256_text(body)
+            chunk_id = stable_id(
+                "chunk",
+                revision_id,
+                artifact_id,
+                ordinal,
+                content_hash,
+                PLAIN_TEXT_CHUNKER_VERSION,
+            )
+            chunks.append(
+                TextChunk(
+                    chunk_id=chunk_id,
+                    ordinal=ordinal,
+                    start_line=start + 1,
+                    end_line=end,
+                    text=body,
+                    content_sha256=content_hash,
+                    chunker_version=PLAIN_TEXT_CHUNKER_VERSION,
+                )
+            )
+        start = end
     return chunks
