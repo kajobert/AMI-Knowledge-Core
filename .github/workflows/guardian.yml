@@ -1,0 +1,72 @@
+name: Repository Guardian
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: repository-guardian
+  cancel-in-progress: false
+
+jobs:
+  guardian:
+    name: Observe, validate, report
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: ami_guardian
+          POSTGRES_PASSWORD: ami_guardian_password
+          POSTGRES_DB: ami_knowledge_core_guardian
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ami_guardian -d ami_knowledge_core_guardian"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://ami_guardian:ami_guardian_password@127.0.0.1:5432/ami_knowledge_core_guardian
+    steps:
+      - name: Checkout current canonical branch
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install project
+        run: python -m pip install --upgrade pip && python -m pip install -e ".[dev]"
+
+      - name: Static validation
+        run: |
+          ruff check .
+          mypy src/ami_knowledge_core
+          python -m pip check
+
+      - name: Tests
+        run: python -m pytest
+
+      - name: PostgreSQL capability check
+        run: python scripts/postgres_smoke.py
+
+      - name: Deterministic observe-plan-validate-report loop
+        run: python scripts/repository_health.py --strict | tee repository-health.json
+
+      - name: Upload health evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: repository-health-${{ github.run_id }}
+          path: repository-health.json
+          if-no-files-found: warn
+          retention-days: 30
