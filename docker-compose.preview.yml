@@ -1,0 +1,21 @@
+# Isolated preview PostgreSQL (sophia-core) — not production.
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: ami_kc_preview
+      POSTGRES_PASSWORD: ${KC_PREVIEW_DB_PASSWORD:-change_me_on_host}
+      POSTGRES_DB: ami_knowledge_core_preview
+    ports:
+      - "127.0.0.1:54329:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ami_kc_preview -d ami_knowledge_core_preview"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - ami_kc_preview_pgdata:/var/lib/postgresql/data
+
+volumes:
+  ami_kc_preview_pgdata:
+    name: ami_kc_preview_pgdata

@@ -1,0 +1,16 @@
+[Unit]
+Description=AMI Knowledge Core Encyclopedia preview (loopback only)
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=@DEPLOY_USER@
+EnvironmentFile=@ENV_FILE@
+WorkingDirectory=@REPO_DIR@
+ExecStart=/usr/bin/python3 -m ami_knowledge_core.api.server
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -173,7 +173,9 @@ async function renderSources() {
 
 async function renderClaims() {
   const claims = await api("/api/claims");
-  workspace.innerHTML = `<h2>Claims</h2>${
+  const demoNote =
+    "<p class='muted'>Preview uses sanitized archaeology fixtures only. Claims appear after worker extraction; absence of real private archaeology is expected until host ingest.</p>";
+  workspace.innerHTML = `<h2>Claims</h2>${demoNote}${
     claims.length
       ? claims
           .map(
@@ -275,4 +277,3 @@ document.getElementById("global-search").addEventListener("submit", async (event
   }
   await renderView();
 })();
-
