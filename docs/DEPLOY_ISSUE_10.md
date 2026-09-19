@@ -2,7 +2,18 @@
 
 Branch: `cursor/archaeology-worker-v01-a2d9`
 
-## On sophia-core (Robert or private worker agent)
+## Verified deployment pattern
+
+The real `sophia-core` host uses:
+- loopback Knowledge Core: `127.0.0.1:8765`
+- isolated preview PostgreSQL: `127.0.0.1:54329`
+- Python venv: `.venv` (required on PEP 668 hosts)
+- dedicated private Tailscale HTTPS port: `8443`
+- path: `/ami-encyclopedia`
+
+Using 8443 intentionally avoids modifying the existing OpenClaw Gateway Serve owner on HTTPS 443.
+
+## On sophia-core
 
 ```bash
 git clone https://github.com/kajobert/AMI-Knowledge-Core.git ~/AMI-Knowledge-Core
@@ -18,15 +29,17 @@ tailscale serve status
 
 Expected loopback: `http://127.0.0.1:8765/`
 
-Expected tailnet path (if path route succeeds): `https://<sophia-core-tailnet-name>/ami-encyclopedia`
+Current verified tailnet route:
+
+`https://sophia-core.tail6f4ebc.ts.net:8443/ami-encyclopedia`
 
 ## Rollback (non-destructive)
 
 ```bash
-sudo bash deploy/sophia-core/rollback-preview.sh
+sudo bash ~/AMI-Knowledge-Core/deploy/sophia-core/rollback-preview.sh
 ```
 
-Does **not** run `tailscale serve reset`.
+Does **not** run `tailscale serve reset` and does not touch the existing 443 route.
 
 ## Isolation
 
@@ -34,3 +47,4 @@ Does **not** run `tailscale serve reset`.
 - DB name: `ami_knowledge_core_preview`
 - Env file: `/etc/ami-kc-encyclopedia-preview.env` (600, host-local)
 - Service: `ami-kc-encyclopedia-preview.service`
+- Preview Tailscale HTTPS port: `8443`
