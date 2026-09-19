@@ -1,0 +1,58 @@
+{
+  "manifest_id": "archaeology_batch_001",
+  "canonical_doc": "kajobert/AMI-alpha/docs/ARCHAEOLOGY_BATCH_001_SOURCE_MANIFEST.md",
+  "note": "Sanitized metadata only. Private raw exports remain outside Git.",
+  "sources": [
+    {
+      "ordinal": 1,
+      "slug": "sophia-consciousness-blueprint",
+      "category": "consciousness_blueprint",
+      "access": "INTERNAL"
+    },
+    {
+      "ordinal": 2,
+      "slug": "sophia-architecture-audit",
+      "category": "architecture_audit",
+      "access": "INTERNAL"
+    },
+    {
+      "ordinal": 3,
+      "slug": "salt-primary-document",
+      "category": "salt_primary",
+      "access": "INTERNAL"
+    },
+    {
+      "ordinal": 4,
+      "slug": "vgl-specification",
+      "category": "vgl_spec",
+      "access": "INTERNAL"
+    },
+    {
+      "ordinal": 5,
+      "slug": "routing-design",
+      "category": "routing_design",
+      "access": "INTERNAL"
+    },
+    {
+      "ordinal": 6,
+      "slug": "dreaming-memory-design",
+      "category": "dreaming_memory",
+      "access": "INTERNAL"
+    },
+    {
+      "ordinal": 7,
+      "slug": "gemini-conversation-artifact",
+      "category": "external_conversation",
+      "access": "SENSITIVE",
+      "export_kind": "gemini"
+    },
+    {
+      "ordinal": 8,
+      "slug": "perplexity-research-artifact",
+      "category": "external_research",
+      "access": "SENSITIVE",
+      "export_kind": "perplexity"
+    }
+  ]
+}
+

@@ -259,6 +259,46 @@ def list_conflicts() -> list[dict[str, Any]]:
         return list(cursor.fetchall())
 
 
+@app.get("/api/worker/status")
+def worker_status() -> dict[str, Any]:
+    with connect() as connection, connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT state, COUNT(*) AS count
+            FROM kc_archaeology_job
+            GROUP BY state
+            ORDER BY state
+            """
+        )
+        by_state = {row["state"]: int(row["count"]) for row in cursor.fetchall()}
+        cursor.execute(
+            """
+            SELECT worker_run_id, status, started_at, finished_at, stats
+            FROM kc_worker_run
+            ORDER BY started_at DESC
+            LIMIT 5
+            """
+        )
+        runs = list(cursor.fetchall())
+    return {"jobs_by_state": by_state, "recent_runs": runs}
+
+
+@app.get("/api/worker/jobs")
+def worker_jobs(limit: int = Query(50, ge=1, le=200)) -> list[dict[str, Any]]:
+    with connect() as connection, connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT job_id, source_id, revision_id, state, processing_fingerprint,
+                   attempt_count, last_error, updated_at
+            FROM kc_archaeology_job
+            ORDER BY updated_at DESC
+            LIMIT %s
+            """,
+            (limit,),
+        )
+        return list(cursor.fetchall())
+
+
 @app.get("/api/search")
 def search_global(
     q: str = Query(..., min_length=1),
