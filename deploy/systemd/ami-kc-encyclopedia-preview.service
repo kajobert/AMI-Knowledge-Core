@@ -8,7 +8,7 @@ Type=simple
 User=@DEPLOY_USER@
 EnvironmentFile=@ENV_FILE@
 WorkingDirectory=@REPO_DIR@
-ExecStart=/usr/bin/python3 -m ami_knowledge_core.api.server
+ExecStart=@PYTHON_BIN@ -m ami_knowledge_core.api.server
 Restart=on-failure
 RestartSec=5
 
