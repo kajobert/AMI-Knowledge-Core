@@ -50,6 +50,14 @@ def _json_safe(value: Any) -> Any:
     return value
 
 
+def _coerce_args(args: dict[str, Any]) -> dict[str, Any]:
+    normalized = dict(args)
+    raw_now = normalized.get("now")
+    if isinstance(raw_now, str):
+        normalized["now"] = datetime.fromisoformat(raw_now.replace("Z", "+00:00"))
+    return normalized
+
+
 def dispatch(request: dict[str, Any]) -> dict[str, Any]:
     op = str(request.get("op", "")).strip()
     if op not in _ALLOWED_OPS:
@@ -57,6 +65,7 @@ def dispatch(request: dict[str, Any]) -> dict[str, Any]:
     args = request.get("args", {})
     if not isinstance(args, dict):
         raise ValueError("host_bridge_args_invalid")
+    args = _coerce_args(args)
 
     service = ArchaeologyInternalService()
 
