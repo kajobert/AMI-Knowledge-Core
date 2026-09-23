@@ -106,8 +106,9 @@ def validate_candidate_evidence(
         if not passed:
             errors.append(code)
 
+    binding = None
     try:
-        require_campaign_binding(
+        binding = require_campaign_binding(
             cursor,
             campaign_id=packet.campaign_id,
             work_ref=packet.work_ref,
@@ -115,6 +116,26 @@ def validate_candidate_evidence(
         record("campaign_work_binding", True, "campaign_work_ref_mismatch")
     except ValueError:
         record("campaign_work_binding", False, "campaign_work_ref_mismatch")
+
+    if binding is not None:
+        cursor.execute(
+            """
+            SELECT revision_refs
+            FROM kc_corpus_snapshot
+            WHERE corpus_snapshot_id = %s
+            """,
+            (binding.corpus_snapshot_id,),
+        )
+        snapshot = cursor.fetchone()
+        revision_refs: list[str] = []
+        if snapshot is not None:
+            raw_refs = snapshot["revision_refs"]
+            revision_refs = json.loads(raw_refs) if isinstance(raw_refs, str) else list(raw_refs)
+        record(
+            "revision_in_campaign_snapshot",
+            packet.revision_id in revision_refs,
+            "campaign_snapshot_mismatch",
+        )
 
     cursor.execute(
         """
