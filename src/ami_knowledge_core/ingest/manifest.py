@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from ..contracts import AccessClass, ImplementationStatus, LifecycleStatus
+from ..contracts import AccessClass, ImplementationStatus, LifecycleStatus, SensitivityClass
 from ..identity import sha256_text
 
 
@@ -22,6 +22,7 @@ class ManifestEntry:
     implementation_status: ImplementationStatus
     lifecycle_status: LifecycleStatus
     access_class: AccessClass
+    sensitivity_class: SensitivityClass
     provenance: dict[str, Any]
     origin: str | None
 
@@ -38,7 +39,7 @@ class AcquisitionManifest:
 
 def _parse_status(
     value: str,
-    enum_cls: type[ImplementationStatus | LifecycleStatus | AccessClass],
+    enum_cls: type[ImplementationStatus | LifecycleStatus | AccessClass | SensitivityClass],
 ) -> Any:
     try:
         return enum_cls(value)
@@ -71,6 +72,10 @@ def load_manifest(manifest_path: Path) -> AcquisitionManifest:
                 access_class=_parse_status(
                     str(item.get("access_class", "INTERNAL")),
                     AccessClass,
+                ),
+                sensitivity_class=_parse_status(
+                    str(item.get("sensitivity_class", "PRIVATE_PROJECT")),
+                    SensitivityClass,
                 ),
                 provenance=dict(item.get("provenance", {})),
                 origin=item.get("origin"),
