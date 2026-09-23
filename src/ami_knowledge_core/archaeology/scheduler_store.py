@@ -351,7 +351,11 @@ def complete_lease(
             SET state=%s, updated_at=%s
             WHERE task_id=%s
             """,
-            ("DONE" if success else "RETRY_PENDING", current, row["task_id"]),
+            (
+                "RESULT_SUBMITTED" if success else "RETRY_PENDING",
+                current,
+                row["task_id"],
+            ),
         )
         connection.commit()
         return True
