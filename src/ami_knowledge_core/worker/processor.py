@@ -486,7 +486,7 @@ def discover_campaign_jobs(*, campaign_id: str, work_ref: str) -> int:
                       job_id, work_ref, campaign_id, source_id, revision_id,
                       state, processing_fingerprint
                     ) VALUES (%s, %s, %s, %s, %s, 'DISCOVERED', %s)
-                    ON CONFLICT (revision_id, processing_fingerprint) DO NOTHING
+                    ON CONFLICT DO NOTHING
                     """,
                     (
                         job_id,
