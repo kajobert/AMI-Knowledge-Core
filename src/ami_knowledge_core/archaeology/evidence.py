@@ -19,7 +19,6 @@ from ..identity import canonical_json, stable_id
 from .campaign import require_campaign_binding
 from .security import contains_secret_like_material
 
-
 EVIDENCE_SCHEMA_VERSION = "archaeology-evidence-v1"
 VALID_SPAN_TYPES = {"text", "conversation", "pdf", "image", "git"}
 
