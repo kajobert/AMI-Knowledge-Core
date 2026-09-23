@@ -55,6 +55,7 @@ def test_campaign_jobs_are_bound_to_canonical_work(
 ) -> None:
     campaign_id, _ = _seed_campaign(archaeology_manifest, raw_store)
     assert discover_campaign_jobs(campaign_id=campaign_id, work_ref=WORK_REF) == 3
+    assert discover_campaign_jobs(campaign_id=campaign_id, work_ref=WORK_REF) == 0
 
     with connect() as connection, connection.cursor() as cursor:
         cursor.execute(
