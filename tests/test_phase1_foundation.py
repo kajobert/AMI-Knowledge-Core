@@ -5,7 +5,10 @@ from pathlib import Path
 
 import pytest
 
-from ami_knowledge_core.archaeology.campaign import register_campaign, register_corpus_snapshot
+from ami_knowledge_core.archaeology.campaign import (
+    register_campaign,
+    register_corpus_snapshot,
+)
 from ami_knowledge_core.archaeology.evidence import CandidateEvidence
 from ami_knowledge_core.archaeology.internal_service import ArchaeologyInternalService
 from ami_knowledge_core.archaeology.security import (
