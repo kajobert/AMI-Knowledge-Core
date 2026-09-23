@@ -68,6 +68,17 @@ ALTER TABLE kc_archaeology_job
     REFERENCES kc_archaeology_campaign (campaign_id) ON DELETE RESTRICT;
 
 ALTER TABLE kc_archaeology_job
+  DROP CONSTRAINT IF EXISTS kc_archaeology_job_revision_id_processing_fingerprint_key;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_kc_archaeology_job_campaign_fingerprint
+  ON kc_archaeology_job (campaign_id, revision_id, processing_fingerprint)
+  WHERE campaign_id IS NOT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_kc_archaeology_job_legacy_fingerprint
+  ON kc_archaeology_job (revision_id, processing_fingerprint)
+  WHERE campaign_id IS NULL;
+
+ALTER TABLE kc_archaeology_job
   DROP CONSTRAINT IF EXISTS kc_archaeology_job_anchor_pair_check;
 
 ALTER TABLE kc_archaeology_job
