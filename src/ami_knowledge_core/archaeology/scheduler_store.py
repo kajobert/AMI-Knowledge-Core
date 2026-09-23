@@ -54,7 +54,21 @@ def register_shard(
     shard_hash = _hash(material)
     shard_id = stable_id("archaeology_shard", campaign_id, shard_hash)
     with connect() as connection, connection.cursor() as cursor:
-        require_campaign_binding(cursor, campaign_id=campaign_id, work_ref=work_ref)
+        binding = require_campaign_binding(cursor, campaign_id=campaign_id, work_ref=work_ref)
+        cursor.execute(
+            """
+            SELECT revision_refs
+            FROM kc_corpus_snapshot
+            WHERE corpus_snapshot_id = %s
+            """,
+            (binding.corpus_snapshot_id,),
+        )
+        snapshot = cursor.fetchone()
+        refs = snapshot["revision_refs"] if snapshot is not None else []
+        if isinstance(refs, str):
+            refs = json.loads(refs)
+        if revision_id not in refs:
+            raise ValueError("campaign_snapshot_mismatch")
         cursor.execute(
             """
             INSERT INTO kc_archaeology_shard (
@@ -160,6 +174,17 @@ def acquire_next_lease(
     with connect() as connection:
         with connection.cursor() as cursor:
             binding = require_campaign_binding(cursor, campaign_id=campaign_id, work_ref=work_ref)
+            cursor.execute(
+                """
+                SELECT campaign_id
+                FROM kc_archaeology_campaign
+                WHERE campaign_id = %s AND work_ref = %s
+                FOR UPDATE
+                """,
+                (campaign_id, work_ref),
+            )
+            if cursor.fetchone() is None:
+                raise ValueError("campaign_work_ref_mismatch")
             if binding.slot_limit > 15:
                 raise ValueError("campaign_slot_limit_invalid")
             cursor.execute(
@@ -169,9 +194,21 @@ def acquire_next_lease(
                 WHERE campaign_id = %s
                   AND state = 'ACTIVE'
                   AND expires_at <= %s
+                RETURNING task_id
                 """,
                 (campaign_id, current),
             )
+            expired_task_ids = [str(row["task_id"]) for row in cursor.fetchall()]
+            if expired_task_ids:
+                cursor.execute(
+                    """
+                    UPDATE kc_archaeology_task
+                    SET state='RETRY_PENDING', updated_at=%s
+                    WHERE task_id = ANY(%s)
+                      AND state IN ('LEASED', 'RUNNING')
+                    """,
+                    (current, expired_task_ids),
+                )
             cursor.execute(
                 """
                 SELECT slot_id
