@@ -16,4 +16,8 @@ def test_migrations_clean_install(database_url: str) -> None:
     assert "kc_source" in names
     assert "kc_chunk" in names
     assert "kc_canonical_record" in names
+    assert "kc_archaeology_campaign" in names
+    assert "kc_archaeology_shard" in names
+    assert "kc_archaeology_task" in names
+    assert "kc_archaeology_lease" in names
 
