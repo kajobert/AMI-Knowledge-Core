@@ -381,3 +381,49 @@ def cancel_campaign_tasks(*, campaign_id: str, work_ref: str) -> int:
         )
         connection.commit()
         return changed
+
+
+def upsert_coverage(
+    *,
+    campaign_id: str,
+    work_ref: str,
+    shard_id: str,
+    domain_lens: str,
+    analysis_pass: str = "DOMAIN_EXTRACTION",
+    status: str = "UNSEEN",
+    coverage_version: str = "coverage-v1",
+) -> str:
+    coverage_id = stable_id(
+        "archaeology_coverage",
+        campaign_id,
+        shard_id,
+        domain_lens,
+        analysis_pass,
+    )
+    with connect() as connection, connection.cursor() as cursor:
+        require_campaign_binding(cursor, campaign_id=campaign_id, work_ref=work_ref)
+        cursor.execute(
+            """
+            INSERT INTO kc_archaeology_coverage (
+              coverage_id, campaign_id, work_ref, shard_id, domain_lens,
+              analysis_pass, status, coverage_version
+            ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+            ON CONFLICT (campaign_id, shard_id, domain_lens, analysis_pass)
+            DO UPDATE SET
+              status=EXCLUDED.status,
+              coverage_version=EXCLUDED.coverage_version,
+              updated_at=now()
+            """,
+            (
+                coverage_id,
+                campaign_id,
+                work_ref,
+                shard_id,
+                domain_lens,
+                analysis_pass,
+                status,
+                coverage_version,
+            ),
+        )
+        connection.commit()
+    return coverage_id
