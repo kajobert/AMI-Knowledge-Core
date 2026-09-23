@@ -23,7 +23,6 @@ from ami_knowledge_core.db import connect
 from ami_knowledge_core.ingest import ingest_manifest
 from ami_knowledge_core.worker import discover_campaign_jobs, run_campaign_worker
 
-
 WORK_REF = "wr_phase1foundation0000001"
 
 
