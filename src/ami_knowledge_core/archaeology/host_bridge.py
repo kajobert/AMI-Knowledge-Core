@@ -14,6 +14,7 @@ from typing import Any
 
 from .internal_service import ArchaeologyInternalService
 from .scheduler_store import (
+    configure_task_execution,
     count_active_leases,
     get_campaign,
     get_task,
@@ -27,6 +28,7 @@ _ALLOWED_OPS = frozenset(
         "get_campaign",
         "recover_expired_leases",
         "count_active_leases",
+        "configure_task_execution",
         "acquire_next_lease",
         "get_task",
         "record_run_start",
@@ -75,6 +77,8 @@ def dispatch(request: dict[str, Any]) -> dict[str, Any]:
         result = recover_expired_leases(**args)
     elif op == "count_active_leases":
         result = count_active_leases(**args)
+    elif op == "configure_task_execution":
+        result = configure_task_execution(**args)
     elif op == "acquire_next_lease":
         lease = service.acquire_next_lease(**args)
         result = None if lease is None else _json_safe(lease)
