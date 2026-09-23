@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 
-import psycopg
 import pytest
 
 from ami_knowledge_core.archaeology.campaign import register_campaign, register_corpus_snapshot
@@ -139,9 +139,7 @@ def test_candidate_evidence_requires_exact_provenance(
     replay = service.submit_candidate_evidence(packet, idempotency_key="idem-1")
     assert replay.evidence_id == first.evidence_id
 
-    bad = CandidateEvidence(
-        **{**packet.__dict__, "source_hash": "0" * 64}
-    )
+    bad = replace(packet, source_hash="0" * 64)
     with pytest.raises(ValueError, match="source_hash_mismatch"):
         service.submit_candidate_evidence(bad, idempotency_key="idem-2")
 
