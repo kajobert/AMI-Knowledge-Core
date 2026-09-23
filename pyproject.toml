@@ -26,6 +26,7 @@ dev = [
 
 [project.scripts]
 ami-kc-serve = "ami_knowledge_core.api.server:main"
+ami-kc-archaeology-bridge = "ami_knowledge_core.archaeology.host_bridge:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/ami_knowledge_core"]
