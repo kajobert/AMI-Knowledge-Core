@@ -12,6 +12,12 @@ from ami_knowledge_core.archaeology.scheduler_store import (
     acquire_next_lease,
     cancel_campaign_tasks,
     complete_lease,
+    configure_task_execution,
+    count_active_leases,
+    get_campaign,
+    get_task,
+    record_run_result,
+    record_run_start,
     register_shard,
     register_task,
     upsert_coverage,
@@ -302,3 +308,88 @@ def test_simulator_is_deterministic() -> None:
     )
     assert first == second
     assert first.status == "SUCCESS"
+
+
+def test_phase4_host_bridge_primitives_preserve_review_boundary(
+    archaeology_manifest: Path,
+    raw_store: Path,
+) -> None:
+    campaign_id, task_ids = _seed_tasks(
+        archaeology_manifest,
+        raw_store,
+        task_count=1,
+        slot_limit=2,
+    )
+    task_id = task_ids[0]
+    assert configure_task_execution(
+        task_id=task_id,
+        campaign_id=campaign_id,
+        work_ref=WORK_REF,
+        externalization_decision="ALLOW",
+        payload_redacted=False,
+        backend_payload={"task_text": "Analyze approved bounded source."},
+    )
+
+    campaign = get_campaign(campaign_id=campaign_id, work_ref=WORK_REF)
+    assert campaign is not None
+    assert int(campaign["slot_limit"]) == 2
+    assert count_active_leases(campaign_id=campaign_id, work_ref=WORK_REF) == 0
+
+    task = get_task(task_id=task_id, campaign_id=campaign_id, work_ref=WORK_REF)
+    assert task is not None
+    assert task["externalization_decision"] == "ALLOW"
+    assert task["backend_payload"]["task_text"] == "Analyze approved bounded source."
+
+    now = datetime(2026, 9, 23, tzinfo=UTC)
+    lease = acquire_next_lease(
+        campaign_id=campaign_id,
+        work_ref=WORK_REF,
+        role="ARCHAEOLOGY_EXTRACTOR",
+        backend="normalized-broker-v1",
+        lease_seconds=60,
+        now=now,
+    )
+    assert lease is not None
+    assert count_active_leases(campaign_id=campaign_id, work_ref=WORK_REF) == 1
+
+    fingerprint = str(task["task_identity_hash"])
+    first = record_run_start(
+        campaign_id=campaign_id,
+        work_ref=WORK_REF,
+        task_id=task_id,
+        lease_id=lease.lease_id,
+        backend="normalized-broker-v1",
+        input_fingerprint=fingerprint,
+        idempotency_key="phase4-run-idem-1",
+        now=now,
+    )
+    replay = record_run_start(
+        campaign_id=campaign_id,
+        work_ref=WORK_REF,
+        task_id=task_id,
+        lease_id=lease.lease_id,
+        backend="normalized-broker-v1",
+        input_fingerprint=fingerprint,
+        idempotency_key="phase4-run-idem-1",
+        now=now,
+    )
+    assert replay["run_id"] == first["run_id"]
+
+    terminal = record_run_result(
+        run_id=str(first["run_id"]),
+        status="SUCCESS",
+        structured_output={"candidate": "review-only"},
+        output_hash="a" * 64,
+        safe_error_code=None,
+        now=now,
+    )
+    assert terminal["status"] == "SUCCESS"
+
+    assert complete_lease(lease.lease_id, success=True, now=now)
+    submitted = get_task(
+        task_id=task_id,
+        campaign_id=campaign_id,
+        work_ref=WORK_REF,
+    )
+    assert submitted is not None
+    assert submitted["state"] == "RESULT_SUBMITTED"
