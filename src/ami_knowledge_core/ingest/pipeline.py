@@ -197,13 +197,15 @@ def _ingest_entry(
         """
         INSERT INTO kc_source (
           source_id, slug, title, description,
-          implementation_status, lifecycle_status, access_class
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+          implementation_status, lifecycle_status, access_class, sensitivity_class
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (source_id) DO UPDATE SET
           title = EXCLUDED.title,
           description = EXCLUDED.description,
           implementation_status = EXCLUDED.implementation_status,
           lifecycle_status = EXCLUDED.lifecycle_status,
+          access_class = EXCLUDED.access_class,
+          sensitivity_class = EXCLUDED.sensitivity_class,
           updated_at = now()
         """,
         (
@@ -214,6 +216,7 @@ def _ingest_entry(
             entry.implementation_status.value,
             entry.lifecycle_status.value,
             entry.access_class.value,
+            entry.sensitivity_class.value,
         ),
     )
     stats["sources_touched"] += 1
