@@ -421,7 +421,7 @@ def discover_jobs(*, batch_id: str | None = None) -> int:
                     INSERT INTO kc_archaeology_job (
                       job_id, source_id, revision_id, state, processing_fingerprint
                     ) VALUES (%s, %s, %s, 'DISCOVERED', %s)
-                    ON CONFLICT (revision_id, processing_fingerprint) DO NOTHING
+                    ON CONFLICT DO NOTHING
                     """,
                     (
                         job_id,
