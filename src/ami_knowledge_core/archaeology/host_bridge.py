@@ -70,6 +70,7 @@ def dispatch(request: dict[str, Any]) -> dict[str, Any]:
     args = _coerce_args(args)
 
     service = ArchaeologyInternalService()
+    result: Any
 
     if op == "get_campaign":
         result = get_campaign(**args)
