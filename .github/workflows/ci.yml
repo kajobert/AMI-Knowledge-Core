@@ -54,9 +54,7 @@ jobs:
 
       - name: Ruff
         if: steps.project.outputs.ready == 'true'
-        run: |
-          ruff check . --fix
-          git diff --exit-code
+        run: ruff check .
 
       - name: Mypy
         if: steps.project.outputs.ready == 'true'
