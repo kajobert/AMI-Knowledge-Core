@@ -10,6 +10,7 @@ from uuid import uuid4
 
 import psycopg
 
+from ..archaeology.campaign import require_campaign_binding
 from ..db import database_url
 from ..extraction.adapter import ExtractionAdapter, HeuristicExtractionAdapter
 from ..extraction.apply import apply_extraction
@@ -172,6 +173,31 @@ def process_job(
             source_id = str(job["source_id"])
             revision_id = str(job["revision_id"])
             fingerprint = str(job["processing_fingerprint"])
+            if job.get("campaign_id") is not None or job.get("work_ref") is not None:
+                if not job.get("campaign_id") or not job.get("work_ref"):
+                    _update_job_state(
+                        cursor,
+                        job_id=job_id,
+                        state="ERROR",
+                        error="campaign_anchor_incomplete",
+                    )
+                    connection.commit()
+                    return "ERROR"
+                try:
+                    require_campaign_binding(
+                        cursor,
+                        campaign_id=str(job["campaign_id"]),
+                        work_ref=str(job["work_ref"]),
+                    )
+                except ValueError as exc:
+                    _update_job_state(
+                        cursor,
+                        job_id=job_id,
+                        state="ERROR",
+                        error=str(exc),
+                    )
+                    connection.commit()
+                    return "ERROR"
 
             cursor.execute("SELECT * FROM kc_source WHERE source_id = %s", (source_id,))
             source_row = cursor.fetchone()
@@ -409,3 +435,152 @@ def discover_jobs(*, batch_id: str | None = None) -> int:
         connection.commit()
     return created
 
+
+
+def discover_campaign_jobs(*, campaign_id: str, work_ref: str) -> int:
+    """Create subordinate jobs only from the campaign's frozen corpus snapshot."""
+    created = 0
+    with psycopg.connect(database_url()) as connection:
+        with connection.cursor(row_factory=psycopg.rows.dict_row) as cursor:
+            binding = require_campaign_binding(
+                cursor,
+                campaign_id=campaign_id,
+                work_ref=work_ref,
+            )
+            cursor.execute(
+                """
+                SELECT revision_refs
+                FROM kc_corpus_snapshot
+                WHERE corpus_snapshot_id = %s
+                """,
+                (binding.corpus_snapshot_id,),
+            )
+            snapshot = cursor.fetchone()
+            if snapshot is None:
+                raise ValueError("campaign_snapshot_missing")
+            revision_refs = snapshot["revision_refs"]
+            if isinstance(revision_refs, str):
+                revision_refs = json.loads(revision_refs)
+            for revision_id in revision_refs:
+                cursor.execute(
+                    """
+                    SELECT r.revision_id, r.source_id
+                    FROM kc_source_revision r
+                    WHERE r.revision_id = %s
+                    """,
+                    (revision_id,),
+                )
+                row = cursor.fetchone()
+                if row is None:
+                    raise ValueError(f"campaign_snapshot_revision_missing:{revision_id}")
+                fingerprint = fingerprint_for_revision(cursor, str(row["revision_id"]))
+                job_id = stable_id(
+                    "arch_job",
+                    campaign_id,
+                    row["revision_id"],
+                    fingerprint,
+                )
+                cursor.execute(
+                    """
+                    INSERT INTO kc_archaeology_job (
+                      job_id, work_ref, campaign_id, source_id, revision_id,
+                      state, processing_fingerprint
+                    ) VALUES (%s, %s, %s, %s, %s, 'DISCOVERED', %s)
+                    ON CONFLICT (revision_id, processing_fingerprint) DO NOTHING
+                    """,
+                    (
+                        job_id,
+                        work_ref,
+                        campaign_id,
+                        row["source_id"],
+                        row["revision_id"],
+                        fingerprint,
+                    ),
+                )
+                if cursor.rowcount:
+                    created += 1
+        connection.commit()
+    return created
+
+
+def run_campaign_worker(
+    *,
+    campaign_id: str,
+    work_ref: str,
+    queue_limit: int = 20,
+    extractor: ExtractionAdapter | None = None,
+) -> WorkerRunReport:
+    """Run only jobs subordinate to one validated canonical work/campaign."""
+    worker_run_id = stable_id("worker_run", campaign_id, uuid4().hex)
+    processed = succeeded = failed = skipped = 0
+
+    with psycopg.connect(database_url()) as connection:
+        with connection.cursor(row_factory=psycopg.rows.dict_row) as cursor:
+            require_campaign_binding(
+                cursor,
+                campaign_id=campaign_id,
+                work_ref=work_ref,
+            )
+            cursor.execute(
+                """
+                INSERT INTO kc_worker_run (worker_run_id, status, queue_limit)
+                VALUES (%s, 'RUNNING', %s)
+                """,
+                (worker_run_id, queue_limit),
+            )
+            cursor.execute(
+                """
+                SELECT job_id, state
+                FROM kc_archaeology_job
+                WHERE campaign_id = %s
+                  AND work_ref = %s
+                  AND state IN ('DISCOVERED', 'RETRY_PENDING')
+                ORDER BY updated_at ASC
+                LIMIT %s
+                FOR UPDATE SKIP LOCKED
+                """,
+                (campaign_id, work_ref, queue_limit),
+            )
+            jobs = list(cursor.fetchall())
+        connection.commit()
+
+    for job in jobs:
+        processed += 1
+        final_state = process_job(str(job["job_id"]), extractor=extractor)
+        if final_state == "REVIEW_PENDING":
+            succeeded += 1
+        elif final_state == "ERROR":
+            failed += 1
+        else:
+            skipped += 1
+
+    stats = {
+        "processed": processed,
+        "succeeded": succeeded,
+        "failed": failed,
+        "skipped": skipped,
+    }
+    with psycopg.connect(database_url()) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE kc_worker_run
+                SET status = %s, finished_at = %s, stats = %s::jsonb
+                WHERE worker_run_id = %s
+                """,
+                (
+                    "COMPLETED" if failed == 0 else "FAILED",
+                    datetime.now(tz=UTC),
+                    json.dumps(stats),
+                    worker_run_id,
+                ),
+            )
+        connection.commit()
+
+    return WorkerRunReport(
+        worker_run_id=worker_run_id,
+        processed=processed,
+        succeeded=succeeded,
+        failed=failed,
+        skipped=skipped,
+    )
