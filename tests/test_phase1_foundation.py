@@ -105,12 +105,26 @@ def test_candidate_evidence_requires_exact_provenance(
     with connect() as connection, connection.cursor() as cursor:
         cursor.execute(
             """
+            SELECT revision_refs
+            FROM kc_corpus_snapshot s
+            JOIN kc_archaeology_campaign c
+              ON c.corpus_snapshot_id = s.corpus_snapshot_id
+            WHERE c.campaign_id = %s
+            """,
+            (campaign_id,),
+        )
+        refs = cursor.fetchone()["revision_refs"]
+        revision_id = str(refs[0])
+        cursor.execute(
+            """
             SELECT c.chunk_id, c.revision_id, r.source_id, r.content_sha256
             FROM kc_chunk c
             JOIN kc_source_revision r ON r.revision_id = c.revision_id
+            WHERE c.revision_id = %s
             ORDER BY c.chunk_id
             LIMIT 1
-            """
+            """,
+            (revision_id,),
         )
         row = cursor.fetchone()
     assert row is not None
