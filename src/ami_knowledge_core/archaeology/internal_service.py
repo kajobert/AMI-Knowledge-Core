@@ -11,6 +11,16 @@ from dataclasses import dataclass
 from ..db import connect
 from .campaign import CampaignBinding, register_campaign, register_corpus_snapshot
 from .evidence import CandidateEvidence, insert_validated_candidate
+from .scheduler_store import (
+    Lease,
+    acquire_next_lease,
+    cancel_campaign_tasks,
+    complete_lease,
+    heartbeat_lease,
+    register_shard,
+    register_task,
+    upsert_coverage,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,3 +78,25 @@ class ArchaeologyInternalService:
             )
             connection.commit()
         return EvidenceSubmissionResult(evidence_id=evidence_id)
+
+
+    def register_shard(self, **kwargs: object) -> str:
+        return register_shard(**kwargs)  # type: ignore[arg-type]
+
+    def register_task(self, **kwargs: object) -> str:
+        return register_task(**kwargs)  # type: ignore[arg-type]
+
+    def upsert_coverage(self, **kwargs: object) -> str:
+        return upsert_coverage(**kwargs)  # type: ignore[arg-type]
+
+    def acquire_next_lease(self, **kwargs: object) -> Lease | None:
+        return acquire_next_lease(**kwargs)  # type: ignore[arg-type]
+
+    def heartbeat_lease(self, lease_id: str, **kwargs: object) -> bool:
+        return heartbeat_lease(lease_id, **kwargs)  # type: ignore[arg-type]
+
+    def complete_lease(self, lease_id: str, **kwargs: object) -> bool:
+        return complete_lease(lease_id, **kwargs)  # type: ignore[arg-type]
+
+    def cancel_campaign_tasks(self, *, campaign_id: str, work_ref: str) -> int:
+        return cancel_campaign_tasks(campaign_id=campaign_id, work_ref=work_ref)
