@@ -128,4 +128,4 @@ jobs:
 
       - name: Integration tests (PostgreSQL)
         if: steps.project.outputs.ready == 'true'
-        run: python -m pytest tests/test_migrations.py tests/test_ingest.py tests/test_provenance.py tests/test_api.py
+        run: python -m pytest tests/test_migrations.py tests/test_ingest.py tests/test_provenance.py tests/test_api.py tests/test_worker.py tests/test_phase1_foundation.py
