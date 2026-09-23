@@ -20,7 +20,6 @@ from ami_knowledge_core.archaeology.simulator import run_simulated_task
 from ami_knowledge_core.db import connect
 from ami_knowledge_core.ingest import ingest_manifest
 
-
 WORK_REF = "wr_phase2scheduler0000001"
 
 
