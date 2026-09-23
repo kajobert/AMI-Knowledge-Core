@@ -9,7 +9,12 @@ from typing import Any
 
 import psycopg
 
-from ..contracts import CanonicalStatus, EvidenceKind, LifecycleStatus, SensitivityClass
+from ..contracts import (
+    CanonicalStatus,
+    EvidenceKind,
+    LifecycleStatus,
+    SensitivityClass,
+)
 from ..identity import canonical_json, stable_id
 from .campaign import require_campaign_binding
 from .security import contains_secret_like_material
@@ -195,7 +200,11 @@ def validate_candidate_evidence(
         ),
         "evidence_kind_invalid",
     )
-    record("claim_bounded", 0 < len(packet.claim_text.encode("utf-8")) <= 16_000, "evidence_too_large")
+    record(
+        "claim_bounded",
+        0 < len(packet.claim_text.encode("utf-8")) <= 16_000,
+        "evidence_too_large",
+    )
 
     return EvidenceValidation(
         ok=not errors,
