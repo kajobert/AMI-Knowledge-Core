@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import sys
+from dataclasses import asdict, is_dataclass
 from datetime import datetime
 from typing import Any
 
@@ -42,6 +43,8 @@ def _json_safe(value: Any) -> Any:
         return {str(key): _json_safe(item) for key, item in value.items()}
     if isinstance(value, (list, tuple)):
         return [_json_safe(item) for item in value]
+    if is_dataclass(value) and not isinstance(value, type):
+        return _json_safe(asdict(value))
     if hasattr(value, "__dict__"):
         return _json_safe(vars(value))
     return value
