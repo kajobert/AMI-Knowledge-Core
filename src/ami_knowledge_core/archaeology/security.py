@@ -92,7 +92,7 @@ def validate_archive_members(
     policy: ArchivePolicy | None = None,
 ) -> None:
     resolved_policy = policy or ArchivePolicy()
-    if len(members) > resolved_resolved_policy.max_members:
+    if len(members) > resolved_policy.max_members:
         raise ValueError("source_archive_member_limit_exceeded")
     total = 0
     for member in members:
