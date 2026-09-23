@@ -109,12 +109,19 @@ def project_evidence(row: dict[str, Any]) -> Observation:
         project_refs = json.loads(project_refs)
     subject_refs = sorted(str(item) for item in [*entity_refs, *project_refs] if str(item).strip())
     subject = "|".join(subject_refs) if subject_refs else str(row["source_id"])
-    key = f"{claim_type.casefold()}::{subject}"
-    asserted = str(row["claim_text"]).strip()
-    normalized = _normalize_text(asserted)
     context = row.get("source_time_context")
     if isinstance(context, str):
         context = json.loads(context)
+    context = context if isinstance(context, dict) else {}
+    explicit_key = str(context.get("reconciliation_key", "")).strip()
+    asserted = str(context.get("asserted_value") or row["claim_text"]).strip()
+    normalized = _normalize_text(asserted)
+    if explicit_key:
+        key = f"explicit::{explicit_key.casefold()}::{subject}"
+    else:
+        # Unstructured prose can be exact-deduplicated, but must never be
+        # compared as a contradiction merely because wording differs.
+        key = f"text::{claim_type.casefold()}::{subject}::{normalized}"
     valid_from, valid_to, observed_at = _time_projection(context)
     return Observation(
         evidence_id=str(row["evidence_id"]),
@@ -138,7 +145,11 @@ def _cluster_identity(obs: Observation) -> tuple[Any, ...]:
     )
 
 
-def cluster_observations(observations: Iterable[Observation]) -> tuple[Cluster, ...]:
+def cluster_observations(
+    observations: Iterable[Observation],
+    *,
+    run_namespace: str = "pure",
+) -> tuple[Cluster, ...]:
     grouped: dict[tuple[Any, ...], list[Observation]] = {}
     for obs in observations:
         grouped.setdefault(_cluster_identity(obs), []).append(obs)
@@ -150,6 +161,7 @@ def cluster_observations(observations: Iterable[Observation]) -> tuple[Cluster, 
         source_ids = tuple(sorted({item.source_id for item in members}))
         cluster_id = stable_id(
             "reconciliation_cluster",
+            run_namespace,
             str(key),
             str(normalized_value),
             *(item for item in evidence_ids),
@@ -221,6 +233,8 @@ def classify_cluster_pairs(clusters: Iterable[Cluster]) -> tuple[dict[str, Any],
 def build_questions(
     findings: Iterable[dict[str, Any]],
     cluster_by_id: dict[str, Cluster],
+    *,
+    run_namespace: str = "pure",
 ) -> tuple[dict[str, Any], ...]:
     questions: list[dict[str, Any]] = []
     for finding in findings:
@@ -237,6 +251,7 @@ def build_questions(
             {
                 "question_id": stable_id(
                     "question_candidate",
+                    run_namespace,
                     finding["reconciliation_key"],
                     *evidence_ids,
                 ),
@@ -274,7 +289,7 @@ def reconcile_campaign(
         cursor.execute(
             """
             SELECT evidence_id, source_id, claim_text, claim_type, entity_refs, project_refs,
-                   source_time_context, packet_hash, validation_status, canonical_status
+                   source_time_context, semantic_hash, packet_hash, validation_status, canonical_status
             FROM kc_candidate_evidence
             WHERE campaign_id=%s AND work_ref=%s AND validation_status='PASS'
               AND canonical_status <> 'REJECTED'
@@ -381,7 +396,7 @@ def reconcile_campaign(
                 ),
             )
 
-        clusters = cluster_observations(observations)
+        clusters = cluster_observations(observations, run_namespace=run_id)
         for cluster in clusters:
             member_observation_ids = [
                 observation_id_by_evidence[evidence_id]
@@ -432,7 +447,7 @@ def reconcile_campaign(
                 ),
             )
 
-        questions = build_questions(findings, cluster_by_id)
+        questions = build_questions(findings, cluster_by_id, run_namespace=run_id)
         for question in questions:
             cursor.execute(
                 """
