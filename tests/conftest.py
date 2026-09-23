@@ -42,9 +42,13 @@ def clean_tables(database_url: str) -> Iterator[None]:
     import psycopg
 
     tables = [
+        "kc_evidence_validation",
+        "kc_candidate_evidence",
         "kc_synthesis_proposal",
         "kc_derived_record",
         "kc_archaeology_job",
+        "kc_archaeology_campaign",
+        "kc_corpus_snapshot",
         "kc_worker_run",
         "kc_timeline_event",
         "kc_canonical_record",
