@@ -257,6 +257,14 @@ def test_expired_lease_recovers_and_old_owner_cannot_complete(
         success=True,
         now=t0 + timedelta(seconds=12),
     )
+    with connect() as connection, connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT state FROM kc_archaeology_task WHERE task_id=%s",
+            (task_ids[0],),
+        )
+        row = cursor.fetchone()
+    assert row is not None
+    assert row["state"] == "RESULT_SUBMITTED"
 
 
 def test_cancellation_stops_new_leases(
