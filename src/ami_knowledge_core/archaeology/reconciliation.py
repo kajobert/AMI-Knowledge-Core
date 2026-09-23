@@ -9,9 +9,10 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any, Iterable
+from typing import Any
 
 from ..db import connect
 from ..identity import canonical_json, stable_id
@@ -74,7 +75,9 @@ def _parse_dt(value: Any) -> datetime | None:
     return result.astimezone(UTC)
 
 
-def _time_projection(context: dict[str, Any] | None) -> tuple[datetime | None, datetime | None, datetime | None]:
+def _time_projection(
+    context: dict[str, Any] | None,
+) -> tuple[datetime | None, datetime | None, datetime | None]:
     if not context:
         return None, None, None
     valid_from = _parse_dt(
@@ -289,7 +292,8 @@ def reconcile_campaign(
         cursor.execute(
             """
             SELECT evidence_id, source_id, claim_text, claim_type, entity_refs, project_refs,
-                   source_time_context, semantic_hash, packet_hash, validation_status, canonical_status
+                   source_time_context, semantic_hash, packet_hash, validation_status,
+                   canonical_status
             FROM kc_candidate_evidence
             WHERE campaign_id=%s AND work_ref=%s AND validation_status='PASS'
               AND canonical_status <> 'REJECTED'
