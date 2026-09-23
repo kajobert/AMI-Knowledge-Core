@@ -89,9 +89,10 @@ def externalization_decision(
 def validate_archive_members(
     members: tuple[ArchiveMember, ...],
     *,
-    policy: ArchivePolicy = ArchivePolicy(),
+    policy: ArchivePolicy | None = None,
 ) -> None:
-    if len(members) > policy.max_members:
+    resolved_policy = policy or ArchivePolicy()
+    if len(members) > resolved_resolved_policy.max_members:
         raise ValueError("source_archive_member_limit_exceeded")
     total = 0
     for member in members:
@@ -104,11 +105,11 @@ def validate_archive_members(
             raise ValueError("source_archive_special_file_refused")
         if member.expanded_size < 0 or member.compressed_size < 0:
             raise ValueError("source_archive_size_invalid")
-        if member.expanded_size > policy.max_member_expanded_bytes:
+        if member.expanded_size > resolved_policy.max_member_expanded_bytes:
             raise ValueError("source_archive_member_too_large")
         total += member.expanded_size
-        if total > policy.max_total_expanded_bytes:
+        if total > resolved_policy.max_total_expanded_bytes:
             raise ValueError("source_archive_expanded_size_limit_exceeded")
         denominator = max(member.compressed_size, 1)
-        if member.expanded_size / denominator > policy.max_compression_ratio:
+        if member.expanded_size / denominator > resolved_policy.max_compression_ratio:
             raise ValueError("source_archive_compression_ratio_unsafe")
