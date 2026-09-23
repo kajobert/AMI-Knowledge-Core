@@ -431,3 +431,305 @@ def upsert_coverage(
         )
         connection.commit()
     return coverage_id
+
+
+_PHASE4_EXTERNALIZATION_DECISIONS = frozenset(
+    {"ALLOW", "ALLOW_REDACTED", "LOCAL_ONLY", "DENY"}
+)
+
+
+def get_campaign(*, campaign_id: str, work_ref: str) -> dict[str, Any] | None:
+    with connect() as connection, connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT campaign_id, work_ref, corpus_snapshot_id, campaign_version,
+                   policy_bundle_hash, slot_limit, status
+            FROM kc_archaeology_campaign
+            WHERE campaign_id=%s AND work_ref=%s
+            """,
+            (campaign_id, work_ref),
+        )
+        row = cursor.fetchone()
+    return dict(row) if row is not None else None
+
+
+def recover_expired_leases(
+    *,
+    campaign_id: str,
+    work_ref: str,
+    now: datetime | None = None,
+) -> int:
+    current = now or datetime.now(tz=UTC)
+    with connect() as connection, connection.cursor() as cursor:
+        require_campaign_binding(cursor, campaign_id=campaign_id, work_ref=work_ref)
+        cursor.execute(
+            """
+            UPDATE kc_archaeology_lease
+            SET state='EXPIRED'
+            WHERE campaign_id=%s
+              AND work_ref=%s
+              AND state='ACTIVE'
+              AND expires_at <= %s
+            RETURNING task_id
+            """,
+            (campaign_id, work_ref, current),
+        )
+        task_ids = [str(row["task_id"]) for row in cursor.fetchall()]
+        if task_ids:
+            cursor.execute(
+                """
+                UPDATE kc_archaeology_task
+                SET state='RETRY_PENDING', updated_at=%s
+                WHERE task_id = ANY(%s)
+                  AND campaign_id=%s
+                  AND work_ref=%s
+                  AND state IN ('LEASED', 'RUNNING')
+                """,
+                (current, task_ids, campaign_id, work_ref),
+            )
+        connection.commit()
+    return len(task_ids)
+
+
+def count_active_leases(*, campaign_id: str, work_ref: str) -> int:
+    with connect() as connection, connection.cursor() as cursor:
+        require_campaign_binding(cursor, campaign_id=campaign_id, work_ref=work_ref)
+        cursor.execute(
+            """
+            SELECT COUNT(*) AS count
+            FROM kc_archaeology_lease
+            WHERE campaign_id=%s AND work_ref=%s AND state='ACTIVE'
+            """,
+            (campaign_id, work_ref),
+        )
+        row = cursor.fetchone()
+    return int(row["count"]) if row is not None else 0
+
+
+def get_task(
+    *,
+    task_id: str,
+    campaign_id: str,
+    work_ref: str,
+) -> dict[str, Any] | None:
+    with connect() as connection, connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT task_id, campaign_id, work_ref, task_identity_hash, task_kind, role,
+                   target_shard_id, target_refs, domain_tags, input_contract_version,
+                   output_contract_version, privacy_class, required_capabilities,
+                   priority_inputs, dependency_task_ids, policy_bundle_hash, state,
+                   attempt_count, max_attempts, externalization_decision,
+                   payload_redacted, backend_payload
+            FROM kc_archaeology_task
+            WHERE task_id=%s AND campaign_id=%s AND work_ref=%s
+            """,
+            (task_id, campaign_id, work_ref),
+        )
+        row = cursor.fetchone()
+    return dict(row) if row is not None else None
+
+
+def configure_task_execution(
+    *,
+    task_id: str,
+    campaign_id: str,
+    work_ref: str,
+    externalization_decision: str,
+    payload_redacted: bool,
+    backend_payload: dict[str, Any],
+) -> bool:
+    if externalization_decision not in _PHASE4_EXTERNALIZATION_DECISIONS:
+        raise ValueError("externalization_decision_invalid")
+    if not isinstance(backend_payload, dict):
+        raise ValueError("backend_payload_invalid")
+    with connect() as connection, connection.cursor() as cursor:
+        require_campaign_binding(cursor, campaign_id=campaign_id, work_ref=work_ref)
+        cursor.execute(
+            """
+            SELECT state
+            FROM kc_archaeology_task
+            WHERE task_id=%s AND campaign_id=%s AND work_ref=%s
+            FOR UPDATE
+            """,
+            (task_id, campaign_id, work_ref),
+        )
+        row = cursor.fetchone()
+        if row is None:
+            raise ValueError("task_not_found")
+        if str(row["state"]) not in {"PENDING", "RETRY_PENDING"}:
+            raise ValueError("task_execution_config_locked")
+        cursor.execute(
+            """
+            UPDATE kc_archaeology_task
+            SET externalization_decision=%s,
+                payload_redacted=%s,
+                backend_payload=%s::jsonb,
+                updated_at=now()
+            WHERE task_id=%s AND campaign_id=%s AND work_ref=%s
+            """,
+            (
+                externalization_decision,
+                bool(payload_redacted),
+                json.dumps(backend_payload),
+                task_id,
+                campaign_id,
+                work_ref,
+            ),
+        )
+        connection.commit()
+    return True
+
+
+def record_run_start(
+    *,
+    campaign_id: str,
+    work_ref: str,
+    task_id: str,
+    lease_id: str,
+    backend: str,
+    input_fingerprint: str,
+    idempotency_key: str,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    if not idempotency_key.strip():
+        raise ValueError("run_idempotency_key_required")
+    current = now or datetime.now(tz=UTC)
+    run_id = stable_id("archaeology_run", campaign_id, idempotency_key)
+    with connect() as connection, connection.cursor() as cursor:
+        require_campaign_binding(cursor, campaign_id=campaign_id, work_ref=work_ref)
+        cursor.execute(
+            """
+            SELECT run_id, task_id, lease_id, backend, input_fingerprint, status,
+                   output_hash, structured_output, safe_error_code, idempotency_key
+            FROM kc_archaeology_run
+            WHERE campaign_id=%s AND idempotency_key=%s
+            """,
+            (campaign_id, idempotency_key),
+        )
+        existing = cursor.fetchone()
+        if existing is not None:
+            if (
+                str(existing["task_id"]) != task_id
+                or str(existing["lease_id"]) != lease_id
+                or str(existing["backend"]) != backend
+                or str(existing["input_fingerprint"]) != input_fingerprint
+            ):
+                raise ValueError("run_idempotency_conflict")
+            return dict(existing)
+
+        cursor.execute(
+            """
+            SELECT 1
+            FROM kc_archaeology_lease
+            WHERE lease_id=%s AND campaign_id=%s AND work_ref=%s
+              AND task_id=%s AND state='ACTIVE' AND expires_at > %s
+            """,
+            (lease_id, campaign_id, work_ref, task_id, current),
+        )
+        if cursor.fetchone() is None:
+            raise ValueError("run_active_lease_required")
+        cursor.execute(
+            """
+            INSERT INTO kc_archaeology_run (
+              run_id, campaign_id, work_ref, task_id, lease_id, backend, status,
+              input_fingerprint, structured_output, idempotency_key, started_at
+            ) VALUES (%s,%s,%s,%s,%s,%s,'RUNNING',%s,'{}'::jsonb,%s,%s)
+            """,
+            (
+                run_id,
+                campaign_id,
+                work_ref,
+                task_id,
+                lease_id,
+                backend,
+                input_fingerprint,
+                idempotency_key,
+                current,
+            ),
+        )
+        cursor.execute(
+            """
+            UPDATE kc_archaeology_task
+            SET state='RUNNING', updated_at=%s
+            WHERE task_id=%s AND campaign_id=%s AND work_ref=%s
+            """,
+            (current, task_id, campaign_id, work_ref),
+        )
+        connection.commit()
+    return {
+        "run_id": run_id,
+        "task_id": task_id,
+        "lease_id": lease_id,
+        "backend": backend,
+        "input_fingerprint": input_fingerprint,
+        "status": "RUNNING",
+        "output_hash": None,
+        "structured_output": {},
+        "safe_error_code": None,
+        "idempotency_key": idempotency_key,
+    }
+
+
+def record_run_result(
+    *,
+    run_id: str,
+    status: str,
+    structured_output: dict[str, Any],
+    output_hash: str | None,
+    safe_error_code: str | None,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    if status not in {"SUCCESS", "FAILED", "CANCELLED"}:
+        raise ValueError("run_terminal_status_invalid")
+    if not isinstance(structured_output, dict):
+        raise ValueError("run_structured_output_invalid")
+    current = now or datetime.now(tz=UTC)
+    with connect() as connection, connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT run_id, status, output_hash, structured_output, safe_error_code
+            FROM kc_archaeology_run
+            WHERE run_id=%s
+            FOR UPDATE
+            """,
+            (run_id,),
+        )
+        row = cursor.fetchone()
+        if row is None:
+            raise ValueError("run_not_found")
+        if str(row["status"]) != "RUNNING":
+            same_output = row["structured_output"] == structured_output
+            if (
+                str(row["status"]) == status
+                and row["output_hash"] == output_hash
+                and row["safe_error_code"] == safe_error_code
+                and same_output
+            ):
+                return dict(row)
+            raise ValueError("run_terminal_conflict")
+        cursor.execute(
+            """
+            UPDATE kc_archaeology_run
+            SET status=%s,
+                structured_output=%s::jsonb,
+                output_hash=%s,
+                safe_error_code=%s,
+                finished_at=%s
+            WHERE run_id=%s
+            RETURNING run_id, status, output_hash, structured_output, safe_error_code
+            """,
+            (
+                status,
+                json.dumps(structured_output),
+                output_hash,
+                safe_error_code,
+                current,
+                run_id,
+            ),
+        )
+        updated = cursor.fetchone()
+        connection.commit()
+    if updated is None:
+        raise RuntimeError("run_result_update_failed")
+    return dict(updated)
